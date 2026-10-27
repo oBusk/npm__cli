@@ -791,7 +791,7 @@ t.test('first arg is a valid semver range', async t => {
     t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
-  t.test('second arg is a qualified spec, missing actual tree', async t => {
+  t.test('second arg is a qualified spec, does not load actual tree', async t => {
     const { output } = await mockDiff(t, {
       prefixDir: {
         'package.json': {
@@ -802,7 +802,7 @@ t.test('first arg is a valid semver range', async t => {
       mocks: {
         '@npmcli/arborist': class {
           constructor () {
-            throw new Error('ERR')
+            t.fail('should not load actual tree')
           }
         },
       },
@@ -818,6 +818,28 @@ t.test('first arg is a valid semver range', async t => {
     t.match(output, 'lorem')
     t.match(output, /-\s*"version": "1\.0\.0"/)
     t.match(output, /\+\s*"version": "2\.0\.0"/)
+  })
+  t.test('second arg is a qualified spec, missing actual tree', async t => {
+    const { output } = await mockDiff(t, {
+      mocks: {
+        '@npmcli/arborist': class {
+          constructor () {
+            throw new Error('ERR')
+          }
+        },
+      },
+      tarballs: {
+        'lorem@1.0.0': {},
+        'lorem@2.0.0': {},
+      },
+      times: { lorem: 2 },
+      diff: ['lorem', 'lorem@1.0.0'],
+      exec: [],
+    })
+
+    t.match(output, 'lorem')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 })
 
