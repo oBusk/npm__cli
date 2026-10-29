@@ -1,3 +1,4 @@
+const npa = require('npm-package-arg')
 const pacote = require('pacote')
 
 const formatDiff = require('./format-diff.js')
@@ -13,6 +14,21 @@ const argsError = () =>
     new TypeError('libnpmdiff needs two arguments to compare'),
     { code: 'EDIFFARGS' }
   )
+
+const getManifests = async (specs, opts) => {
+  const packumentCache = new Map()
+  const getManifest = spec => pacote.manifest(spec, {
+    packumentCache,
+    ...opts,
+    _isRoot: true,
+  })
+  const [aSpec, bSpec] = specs.map(spec => npa(spec))
+  return aSpec.registry && bSpec.registry && aSpec.name === bSpec.name
+    // one after the other, so the second reuses the packument fetched for the first
+    ? [await getManifest(specs[0]), await getManifest(specs[1])]
+    : Promise.all(specs.map(getManifest))
+}
+
 const diff = async (specs, opts = {}) => {
   if (specs.length !== 2) {
     throw argsError()
@@ -21,11 +37,7 @@ const diff = async (specs, opts = {}) => {
   const [
     aManifest,
     bManifest,
-  ] =
-    await Promise.all(specs.map(spec => pacote.manifest(spec, {
-      ...opts,
-      _isRoot: true,
-    })))
+  ] = await getManifests(specs, opts)
 
   const versions = {
     a: aManifest.version,

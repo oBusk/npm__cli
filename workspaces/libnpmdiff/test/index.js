@@ -1,3 +1,5 @@
+const { readFile } = require('node:fs/promises')
+const http = require('node:http')
 const { resolve } = require('node:path')
 
 const t = require('tap')
@@ -145,4 +147,30 @@ t.test('folder in node_modules', async t => {
       'file:./packages/b',
     ], { where: path }), 'should output expected diff')
   })
+})
+
+t.test('fetches the packument once for two versions of a package', async t => {
+  const tgz = await readFile(resolve(__dirname, 'fixtures/simple-output-2.2.1.tgz'))
+  const packumentRequests = []
+  const server = http.createServer((req, res) => {
+    const name = req.url.slice(1)
+    if (name.includes('/')) {
+      return res.end(tgz)
+    }
+    packumentRequests.push(name)
+    res.end(JSON.stringify({
+      name,
+      versions: Object.fromEntries(['1.0.0', '2.0.0'].map(version => [version, {
+        name,
+        version,
+        dist: { tarball: `http://${req.headers.host}/${name}/-/${name}-${version}.tgz` },
+      }])),
+    }))
+  })
+  await new Promise(res => server.listen(0, '127.0.0.1', res))
+  t.teardown(() => server.close())
+  const registry = `http://127.0.0.1:${server.address().port}/`
+
+  await diff(['a@1.0.0', 'a@2.0.0'], { registry, cache: t.testdir() })
+  t.strictSame(packumentRequests, ['a'])
 })
