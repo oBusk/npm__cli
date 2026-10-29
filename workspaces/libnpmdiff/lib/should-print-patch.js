@@ -9,7 +9,7 @@ const shouldPrintPatch = async (path, opts = {}) => {
     return true
   }
 
-  binaryExtensions ??= (await import('binary-extensions')).default
+  binaryExtensions ??= new Set((await import('binary-extensions')).default)
 
   const filename = basename(path)
   const extension = (
@@ -18,7 +18,7 @@ const shouldPrintPatch = async (path, opts = {}) => {
       : extname(filename)
   ).slice(1)
 
-  return !binaryExtensions.includes(extension)
+  return !binaryExtensions.has(extension)
 }
 
 module.exports = shouldPrintPatch
