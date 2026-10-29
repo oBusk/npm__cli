@@ -1,5 +1,7 @@
 const { basename, extname } = require('node:path')
 
+let binaryExtensions
+
 // we should try to print patches as long as the
 // extension is not identified as binary files
 const shouldPrintPatch = async (path, opts = {}) => {
@@ -7,7 +9,7 @@ const shouldPrintPatch = async (path, opts = {}) => {
     return true
   }
 
-  const { default: binaryExtensions } = await import('binary-extensions')
+  binaryExtensions ??= (await import('binary-extensions')).default
 
   const filename = basename(path)
   const extension = (
